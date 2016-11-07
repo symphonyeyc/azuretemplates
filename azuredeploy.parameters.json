@@ -1,0 +1,24 @@
+﻿{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "targetStorageAccountName": {
+            "value": "fourstracc"
+        },
+        "webTierInstances": {
+            "value": 2
+        },
+        "osImageVhdUri": {
+            "value": "https://fourstracc.blob.core.windows.net/gold/gold.vhd"
+        },
+        "dataDisk1VhdUri": {
+            "value": "https://fourstracc.blob.core.windows.net/gold/gold-data1.vhd"
+        },
+        "customerName": {
+            "value": "five"
+        },
+        "adminUserName": {
+            "value": "bcdradmin"
+        }
+    }
+}

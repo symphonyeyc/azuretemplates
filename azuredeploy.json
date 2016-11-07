@@ -1,0 +1,194 @@
+﻿{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "armTemplateBaseURI": {
+      "type": "string",
+      "defaultValue": "https://bcdrdisks.blob.core.windows.net/templates/",
+      "metadata": {
+        "description": "The base URL for where the ARM template resides. Example: https://storageaccount.blob.core.windows.net/container/"
+      }
+    },
+    "product": {
+      "type": "string",
+      "defaultValue": "frontend",
+      "allowedValues": [
+        "frontend",
+        "backend"
+      ]
+    },
+    "customerName": {
+      "type": "string",
+      "defaultValue": "defaultCustomer",
+      "metadata": {
+        "description": "Customer name"
+      }
+    },
+    "osImageVhdUri": {
+      "type": "string",
+      "defaultValue": "https://bcdrdisks.blob.core.windows.net/clonevhd/gold.vhd",
+      "metadata": {
+        "description": "Uri of the existing VHD"
+      }
+    },
+    "dataDisk1VhdUri": {
+      "type": "string",
+      "defaultValue": "https://bcdrdisks.blob.core.windows.net/clonevhd/gold-data1.vhd",
+      "metadata": {
+        "description": "Uri of the existing data disk 1 VHD"
+      }
+    },
+    "targetStorageAccountName": {
+      "type": "string",
+      "defaultValue": "bcdrdisks",
+      "metadata": {
+        "description": "This is the name of the your storage account that the clone VHDs will be created in"
+      }
+    },
+    "adminUserName": {
+      "type": "string",
+      "defaultValue": "armadmin",
+      "metadata": {
+        "description": "Admin user name for the VMs"
+      }
+    },
+    "adminPassword": {
+      "type": "securestring",
+      "metadata": {
+        "description": "Admin password for the VMs (A mix of upper and lower-case characters, digits and symbols)"
+      }
+    },
+    "vnetAddressPrefix": {
+      "type": "string",
+      "defaultValue": "10.0.0.0/16",
+      "metadata": {
+        "description": "Customer Address prefix for the vnet (10.0.0.0/16)"
+      }
+    },
+    "websubnetPrefix": {
+      "type": "string",
+      "defaultValue": "10.0.0.0/24",
+      "metadata": {
+        "description": "Web Subnet Prefix (10.0.0.0/24)"
+      }
+    },
+    "sqlsubnetPrefix": {
+      "type": "string",
+      "defaultValue": "10.0.1.0/24",
+      "metadata": {
+        "description": "SQL Subnet Prefix (10.0.1.0/24)"
+      }
+    },
+    "authsubnetPrefix": {
+      "type": "string",
+      "defaultValue": "10.0.2.0/24",
+      "metadata": {
+        "description": "Auth Subnet Prefix (10.0.2.0/24)"
+      }
+    },
+    "webTierInstances": {
+      "type": "int",
+      "defaultValue": "2",
+      "metadata": {
+        "description": "The number of required web tier servers"
+      }
+    }
+  },
+  "variables": {
+    "templateAPIVersion": "2015-11-01",
+    "location": "[resourceGroup().location]",
+    "sharedResourcesTemplateURI": "[concat(parameters('armTemplateBaseURI'),'shared-resources.json')]",
+    "webtierTemplateURI": "[concat(parameters('armTemplateBaseURI'),parameters('product'),'.json')]",
+    "vnetName": "[concat(parameters('product'),'-',parameters('customerName'),'-vnet')]",
+    "vnetID": "[resourceId('Microsoft.Network/virtualNetworks',variables('vnetName'))]",
+    "subnet1Name": "[concat(parameters('customerName'),'-web-subnet')]",
+    "subnet1Ref": "[concat(variables('vnetID'),'/subnets/',variables('subnet1Name'))]",
+    "subnet2Name": "[concat(parameters('customerName'),'-sql-subnet')]",
+    "subnet2Ref": "[concat(variables('vnetID'),'/subnets/',variables('subnet2Name'))]",
+    "subnet3Name": "[concat(parameters('customerName'),'-auth-subnet')]",
+    "subnet3Ref": "[concat(variables('vnetID'),'/subnets/',variables('subnet3Name'))]"
+  },
+  "resources": [
+    {
+      "apiVersion": "[variables('templateAPIVersion')]",
+      "name": "shared-resources",
+      "type": "Microsoft.Resources/deployments",
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "uri": "[concat(variables('sharedResourcesTemplateURI'))]",
+          "contentVersion": "1.0.0.0"
+        },
+        "parameters": {
+          "vnetName": {
+            "value": "[variables('vnetName')]"
+          },
+          "vnetAddressPrefix": {
+            "value": "[parameters('vnetAddressPrefix')]"
+          },
+          "websubnetPrefix": {
+            "value": "[parameters('websubnetPrefix')]"
+          },
+          "sqlsubnetPrefix": {
+            "value": "[parameters('sqlsubnetPrefix')]"
+          },
+          "authsubnetPrefix": {
+            "value": "[parameters('authsubnetPrefix')]"
+          },
+          "subnet1name": {
+            "value": "[variables('subnet1Name')]"
+          },
+          "subnet2name": {
+            "value": "[variables('subnet2Name')]"
+          },
+          "subnet3name": {
+            "value": "[variables('subnet3Name')]"
+          }
+        },
+        "outputs": {
+        }
+      }
+    },
+    {
+      "name": "web-tier",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "[variables('templateAPIVersion')]",
+      "dependsOn": [
+        "Microsoft.Resources/deployments/shared-resources"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "uri": "[concat(variables('webtierTemplateURI'))]",
+          "contentVersion": "1.0.0.0"
+        },
+        "parameters": {
+          "webTierInstances": {
+            "value": "[parameters('webTierInstances')]"
+          },
+          "subnetRef": {
+            "value": "[variables('subnet1Ref')]"
+          },
+          "targetStorageAccountName": {
+            "value": "[parameters('targetStorageAccountName')]"
+          },
+          "osImageVhdUri": {
+            "value": "[parameters('osImageVhdUri')]"
+          },
+          "dataDisk1VhdUri": {
+            "value": "[parameters('dataDisk1VhdUri')]"
+          },
+          "adminUserName": {
+            "value": "[parameters('adminUserName')"
+          },
+          "adminPassword": {
+            "value": "[parameters('adminPassword')"
+          },
+          "customerName": {
+            "value": "[parameters('customerName')]"
+          }
+        }
+      }
+    }
+  ]
+}
